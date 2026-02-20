@@ -50,14 +50,22 @@ export class MicrosoftAPIsOauthExchangeCodeForTokenGuard extends AuthGuard(
 
       return (await super.canActivate(context)) as boolean;
     } catch (error) {
+      const authError =
+        error?.status === 401
+          ? new AuthException(
+              'We cannot connect to your Microsoft account, please try again with more permissions, or a valid account',
+              AuthExceptionCode.UNAUTHENTICATED,
+            )
+          : error?.oauthError?.statusCode === 403
+            ? new AuthException(
+                `Insufficient privileges to access this microsoft resource. Make sure you have the correct scopes or ask your admin to update your scopes. ${error?.message}`,
+                AuthExceptionCode.INSUFFICIENT_SCOPES,
+              )
+            : error;
+
       this.guardRedirectService.dispatchErrorFromGuard(
         context,
-        error?.oauthError?.statusCode === 403
-          ? new AuthException(
-              `Insufficient privileges to access this microsoft resource. Make sure you have the correct scopes or ask your admin to update your scopes. ${error?.message}`,
-              AuthExceptionCode.INSUFFICIENT_SCOPES,
-            )
-          : error,
+        authError,
         this.guardRedirectService.getSubdomainAndCustomDomainFromContext(
           context,
         ),
