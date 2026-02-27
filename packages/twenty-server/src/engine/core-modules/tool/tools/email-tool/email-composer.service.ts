@@ -1,23 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { Readable } from 'stream';
-
 import { render, toPlainText } from '@react-email/render';
 import DOMPurify from 'dompurify';
 import { reactMarkupFromJSON } from 'twenty-emails';
 import { FileFolder } from 'twenty-shared/types';
-import {
-  extractFolderPathFilenameAndTypeOrThrow,
-  isDefined,
-  isValidUuid,
-} from 'twenty-shared/utils';
+import { isDefined, isValidUuid } from 'twenty-shared/utils';
 import { WorkflowAttachment } from 'twenty-shared/workflow';
 import { In, type Repository } from 'typeorm';
 import { z } from 'zod';
 
-import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/feature-flag-key.enum';
-import { FeatureFlagService } from 'src/engine/core-modules/feature-flag/services/feature-flag.service';
 import { FileEntity } from 'src/engine/core-modules/file/entities/file.entity';
 import { FileService } from 'src/engine/core-modules/file/services/file.service';
 import {
@@ -46,15 +38,7 @@ export class EmailComposerService {
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
     private readonly fileService: FileService,
-    private readonly featureFlagService: FeatureFlagService,
   ) {}
-
-  private async isOtherFileMigrated(workspaceId: string): Promise<boolean> {
-    return this.featureFlagService.isFeatureEnabled(
-      FeatureFlagKey.IS_OTHER_FILE_MIGRATED,
-      workspaceId,
-    );
-  }
 
   private async getConnectedAccount(
     connectedAccountId: string,
@@ -215,29 +199,11 @@ export class EmailComposerService {
     const attachments: MessageAttachment[] = [];
 
     for (const fileMetadata of files) {
-      const fileEntity = fileEntityMap.get(fileMetadata.id)!;
-
-      const { folderPath, filename } = extractFolderPathFilenameAndTypeOrThrow(
-        fileEntity.path,
-      );
-
-      const isOtherFileMigrated = await this.isOtherFileMigrated(workspaceId);
-
-      let stream: Readable;
-
-      if (isOtherFileMigrated) {
-        stream = await this.fileService.getFileStreamById({
-          fileId: fileMetadata.id,
-          workspaceId,
-          fileFolder: FileFolder.Workflow,
-        });
-      } else {
-        stream = await this.fileService.getFileStream(
-          folderPath,
-          filename,
-          workspaceId,
-        );
-      }
+      const stream = await this.fileService.getFileStreamById({
+        fileId: fileMetadata.id,
+        workspaceId,
+        fileFolder: FileFolder.Workflow,
+      });
 
       const buffer = await streamToBuffer(stream);
 

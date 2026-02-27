@@ -10,20 +10,19 @@ import { downloadFile } from '@/activities/files/utils/downloadFile';
 import { type ActivityTargetableObject } from '@/activities/types/ActivityTargetableEntity';
 import { isAttachmentPreviewEnabledState } from '@/client-config/states/isAttachmentPreviewEnabledState';
 import { Modal } from '@/ui/layout/modal/components/Modal';
-import { useIsFeatureEnabled } from '@/workspace/hooks/useIsFeatureEnabled';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 
 import { ActivityList } from '@/activities/components/ActivityList';
+import {
+  type AttachmentWithFile,
+  filterAttachmentsWithFile,
+} from '@/activities/files/utils/filterAttachmentsWithFile';
 import { useHasPermissionFlag } from '@/settings/roles/hooks/useHasPermissionFlag';
 import { useModal } from '@/ui/layout/modal/hooks/useModal';
 import { ScrollWrapper } from '@/ui/utilities/scroll/components/ScrollWrapper';
-import { assertIsDefinedOrThrow } from 'twenty-shared/utils';
 import { IconDownload, IconX } from 'twenty-ui/display';
 import { IconButton } from 'twenty-ui/input';
-import {
-  PermissionFlagType,
-  FeatureFlagKey,
-} from '~/generated-metadata/graphql';
+import { PermissionFlagType } from '~/generated-metadata/graphql';
 import { AttachmentRow } from './AttachmentRow';
 
 const DocumentViewer = lazy(() =>
@@ -133,14 +132,10 @@ export const AttachmentList = ({
   const { uploadAttachmentFile } = useUploadAttachmentFile();
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [previewedAttachment, setPreviewedAttachment] =
-    useState<Attachment | null>(null);
+    useState<AttachmentWithFile | null>(null);
 
   const isAttachmentPreviewEnabled = useAtomStateValue(
     isAttachmentPreviewEnabledState,
-  );
-
-  const isFilesFieldMigrated = useIsFeatureEnabled(
-    FeatureFlagKey.IS_FILES_FIELD_MIGRATED,
   );
 
   const hasDownloadPermission = useHasPermissionFlag(
@@ -153,14 +148,10 @@ export const AttachmentList = ({
 
   const { openModal, closeModal } = useModal();
 
-  const getAttachmentUrl = (attachment: Attachment) => {
-    const fileUrl = isFilesFieldMigrated
-      ? attachment.file?.[0]?.url || attachment.fullPath
-      : attachment.fullPath;
+  const attachmentsWithFile = filterAttachmentsWithFile(attachments);
 
-    assertIsDefinedOrThrow(fileUrl, new Error(t`File URL is not defined`));
-
-    return fileUrl;
+  const getAttachmentUrl = (attachment: AttachmentWithFile): string => {
+    return attachment.file[0].url ?? '';
   };
 
   const onUploadFile = async (file: File) => {
@@ -173,7 +164,7 @@ export const AttachmentList = ({
     }
   };
 
-  const handlePreview = (attachment: Attachment) => {
+  const handlePreview = (attachment: AttachmentWithFile) => {
     if (!isAttachmentPreviewEnabled) return;
     setPreviewedAttachment(attachment);
     openModal(PREVIEW_MODAL_ID);
@@ -194,11 +185,11 @@ export const AttachmentList = ({
 
   return (
     <>
-      {attachments && attachments.length > 0 && (
+      {attachmentsWithFile && attachmentsWithFile.length > 0 && (
         <StyledContainer>
           <StyledTitleBar>
             <StyledTitle>
-              {title} <StyledCount>{attachments.length}</StyledCount>
+              {title} <StyledCount>{attachmentsWithFile.length}</StyledCount>
             </StyledTitle>
             {button}
           </StyledTitleBar>
@@ -212,7 +203,7 @@ export const AttachmentList = ({
               />
             ) : (
               <ActivityList>
-                {attachments.map((attachment) => (
+                {attachmentsWithFile.map((attachment) => (
                   <AttachmentRow
                     key={attachment.id}
                     attachment={attachment}

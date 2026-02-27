@@ -17,8 +17,6 @@ import {
 import { type AvailableWorkspace } from 'src/engine/core-modules/auth/dto/available-workspaces.output';
 import { LoginTokenService } from 'src/engine/core-modules/auth/token/services/login-token.service';
 import { WorkspaceDomainsService } from 'src/engine/core-modules/domain/workspace-domains/services/workspace-domains.service';
-import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/feature-flag-key.enum';
-import { FeatureFlagService } from 'src/engine/core-modules/feature-flag/services/feature-flag.service';
 import { FileCorePictureService } from 'src/engine/core-modules/file/file-core-picture/services/file-core-picture.service';
 import { FileUploadService } from 'src/engine/core-modules/file/file-upload/services/file-upload.service';
 import { extractFileIdFromUrl } from 'src/engine/core-modules/file/files-field/utils/extract-file-id-from-url.util';
@@ -61,7 +59,6 @@ export class UserWorkspaceService extends TypeOrmQueryService<UserWorkspaceEntit
     private readonly fileUploadService: FileUploadService,
     private readonly fileService: FileService,
     private readonly onboardingService: OnboardingService,
-    private readonly featureFlagService: FeatureFlagService,
   ) {
     super(userWorkspaceRepository);
   }
@@ -395,27 +392,13 @@ export class UserWorkspaceService extends TypeOrmQueryService<UserWorkspaceEntit
     applicationUniversalIdentifier?: string,
     queryRunner?: QueryRunner,
   ) {
-    const isOtherFileMigrated = await this.featureFlagService.isFeatureEnabled(
-      FeatureFlagKey.IS_OTHER_FILE_MIGRATED,
-      workspaceId,
-    );
-
-    if (isOtherFileMigrated) {
-      return this.computeDefaultAvatarUrlMigrated(
-        userId,
-        workspaceId,
-        isExistingUser,
-        pictureUrl,
-        applicationUniversalIdentifier,
-        queryRunner,
-      );
-    }
-
-    return this.computeDefaultAvatarUrlLegacy(
+    return this.computeDefaultAvatarUrlMigrated(
       userId,
       workspaceId,
       isExistingUser,
       pictureUrl,
+      applicationUniversalIdentifier,
+      queryRunner,
     );
   }
 
