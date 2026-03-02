@@ -5,16 +5,14 @@ import { useAtomState } from '@/ui/utilities/state/jotai/hooks/useAtomState';
 import { useApolloClient } from '@apollo/client';
 import { useLingui } from '@lingui/react/macro';
 import { type FileUIPart } from 'ai';
-import { buildSignedPath, isDefined } from 'twenty-shared/utils';
-import { REACT_APP_SERVER_BASE_URL } from '~/config';
-import {
-  FileFolder,
-  useUploadFileMutation,
-} from '~/generated-metadata/graphql';
+import { isDefined } from 'twenty-shared/utils';
+import { useUploadAiChatFileMutation } from '~/generated-metadata/graphql';
 
 export const useAIChatFileUpload = () => {
   const apolloClient = useApolloClient();
-  const [uploadFile] = useUploadFileMutation({ client: apolloClient });
+  const [uploadAiChatFile] = useUploadAiChatFileMutation({
+    client: apolloClient,
+  });
   const { t } = useLingui();
   const { enqueueErrorSnackBar } = useSnackBar();
   const [agentChatSelectedFiles, setAgentChatSelectedFiles] = useAtomState(
@@ -26,23 +24,17 @@ export const useAIChatFileUpload = () => {
 
   const sendFile = async (file: File): Promise<FileUIPart | null> => {
     try {
-      const result = await uploadFile({
+      const result = await uploadAiChatFile({
         variables: {
           file,
-          fileFolder: FileFolder.AgentChat,
         },
       });
 
-      const response = result?.data?.uploadFile;
+      const response = result?.data?.uploadAiChatFile;
 
       if (!isDefined(response)) {
         throw new Error(t`Couldn't upload the file.`);
       }
-
-      const signedPath = buildSignedPath({
-        path: response.path,
-        token: response.token,
-      });
 
       setAgentChatSelectedFiles(
         agentChatSelectedFiles.filter((f) => f.name !== file.name),
@@ -50,7 +42,7 @@ export const useAIChatFileUpload = () => {
       return {
         filename: file.name,
         mediaType: file.type,
-        url: `${REACT_APP_SERVER_BASE_URL}/files/${signedPath}`,
+        url: response.url,
         type: 'file',
       };
     } catch {
